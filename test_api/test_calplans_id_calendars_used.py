@@ -32,70 +32,72 @@ class TestCalplansIdCalendarsUsed:
         assert response.json() == response_body
 
     @pytest.mark.parametrize(
-        "calplanid,status_code,request_body,params",
+        "calplanid,status_code,request_body,params,response_body",
         [
-            ('1', 200, {"calendarId": 2}, {"purpose": "works"})
+            ('1', 200, {"calendarId": 2}, {"purpose": "works"}, b''),
+            ('1', 200, {"calendarId": 2}, {"purpose": "plan"}, b''),
+            ('1', 200, {"calendarId": 2}, {"purpose": "worksSMR"}, b''),
+            ('1', 404, {"calendarId": 1000}, {"purpose": "worksSMR"}, {'title': 'Calendar not found', 'message':
+                                                                                'Data with this calplanId and '
+                                                                                'this calendarId not exists'}),
+            ('1', 400, {"calendarId": "asd"}, {"purpose": "worksSMR"}, {'title': 'Wrong parameter', 'message':
+                                                                              'Invalid calendarId'}),
+            ('1', 400, {"calendarId": 1}, {"purpose": "worksSMR", "query": "15"}, {'title': 'Request is invalid',
+                                                                                     'message':
+                                                                                         'The request was not recognized'
+                                                                                     }),
+            ('1000', 404, {"calendarId": 1}, {"purpose": "worksSMR"}, {
+                'title': 'Calendar not found',
+                'message': 'Data with this calplanId and this calendarId not exists'
+            }),
+            ('1', 400, {"calendarId": 1}, {"purpose": "asd"}, {'title': 'Wrong data',
+                                                                                     'message':
+                                                                                         'Invalid purpose value'
+                                                                                     }),
+            ('1', 400, {"calendarId": ""}, {"purpose": "works"}, {'title': 'Wrong parameter',
+                                                               'message':
+                                                                   'Invalid calendarId'}),
+            ('1', 400, {"calendarId": "1", "purpose": "works"}, {"purpose": "works"}, {'title': 'Wrong data',
+                                                               'message':
+                                                                   'Wrong number of json parameters'}),
+            ('-1', 400, {"calendarId": 2}, {"purpose": "works"}, {'title': 'Wrong parameter',
+                                                               'message':
+                                                                   'Invalid calplanId'}),
+            ('', 400, {"calendarId": 2}, {"purpose": "works"}, {'title': 'Request is invalid',
+                                                               'message': 'The request was not recognized'}),
+            ('1', 400, '', {"purpose": "works"}, {'title': 'Request is invalid',
+                                                               'message': 'The request was not recognized'})
         ]
     )
-    def test_patch(self, calplanid, status_code, request_body, params):
-        response = requests.patch(url=self.uri.format('1'), json=request_body, params=params)
+    def test_patch(self, calplanid, status_code, request_body, params, response_body):
+        if request_body:
+            response = requests.patch(url=self.uri.format(calplanid), json=request_body, params=params)
+        else:
+            response = requests.patch(url=self.uri.format(calplanid), params=params)
 
         assert response is not None
         assert response.status_code == status_code
-        assert response.content == b''
 
-    def test_patch_id_1_correct_plan(self):
-        body = {"calendarId": 2}
-        param ={"purpose": "plan"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
+        if response_body:
+            assert response.json() == response_body
+        else:
+            assert response.content == response_body
 
-        assert response.status_code == 200
+
+class TestCalplansIdCalendarsCreated:
+    uri = settings.SERVER_URI + '/calplans/{0}/calendars-created'
+
+    @pytest.mark.parametrize(
+        "calplanid,status_code,response_body,request_body",
+        [
+                ("1", 200, {'title': 'Wrong parameter', 'message': 'calplanId is not a number'}, ''),
+        ]
+    )
+    def test_get(self, calplanid, status_code, response_body, request_body):
+
+        response = requests.get(url=self.uri.format(calplanid), data=request_body)
+
         assert response is not None
-        assert response.content == b''
-        # print(response.content)
-
-    def test_patch_id_1_correct_worksSMR(self):
-        body = {"calendarId": 2}
-        param ={"purpose": "worksSMR"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
-
-        assert response.status_code == 200
-        assert response is not None
-        assert response.content == b''
-
-    def test_patch_id_1_not_existing_calendarId(self):
-        body = {"calendarId": 1000}
-        param ={"purpose": "worksSMR"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
-
-        assert response.status_code == 404
-        assert response is not None
-        assert response.json() == {'title': 'Calendar not found', 'message': 'Data with this calplanId and '
-                                                                             'this calendarId not exists'}
-
-    def test_patch_id_1_not_correct_calendarId(self):
-        body = {"calendarId": "asd"}
-        param ={"purpose": "worksSMR"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
-
-        assert response.status_code == 400
-        assert response is not None
-        assert response.json() == {'title': 'Wrong parameter', 'message': 'Invalid calendarId'}
-
-    def test_patch_id_1_dop_query_calendarId(self):
-        body = {"calendarId": "1"}
-        param ={"purpose": "worksSMR", "query": "15"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
-
-        assert response.status_code == 400
-        assert response is not None
-        assert response.json() == {'title': 'Request is invalid', 'message': 'The request was not recognized'}
-
-    def test_patch_id_1_incorrect_calendarId(self):
-        body = {"calendarId": "1"}
-        param ={"purpose": "worksSMR", "query": "15"}
-        response = requests.request(method='patch', url=self.uri.format('1'), json=body, params=param)
-
-        assert response.status_code == 400
-        assert response is not None
-        assert response.json() == {'title': 'Request is invalid', 'message': 'The request was not recognized'}
+        assert response.status_code == status_code
+        if status_code == 200:
+            assert response.json().get('calendars') is not None
