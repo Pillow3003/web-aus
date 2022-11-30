@@ -1,7 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.declarative import declarative_base
 
 
 class DataBase:
@@ -9,37 +8,20 @@ class DataBase:
 
     def __init__(self):
         self._engine = create_engine(
-            'postgresql://root:12345@192.168.131.130:5432/calplanDb'
+            "postgresql://root:12345@192.168.131.130:5432/calplanDb"
         )
+        self.__session = Session(self._engine, future=True, expire_on_commit=False)
 
-    def get_session(self) -> Session:
-        return Session(self._engine, future=True, expire_on_commit=False)
+    @property
+    def session(self) -> Session:
+        return self.__session
 
-    def truncate_tables(self, tables):
+    def truncate_tables(self, tables: list):
         with self._engine.begin() as conn:
-            conn.execute(f'TRUNCATE {", ".join(tables)}')
+            conn.execute(f'TRUNCATE {", ".join(tables)} CASCADE')
 
     def execute_sql(self, script: str):
         with self._engine.begin() as conn:
             result = conn.execute(script)
             row = result.fetchall()
         return row
-
-Base = declarative_base()
-
-class Calplan(Base):
-    __tablename__ = 'calplans'
-    id = Column(Integer, primary_key=True)
-
-db = DataBase()
-
-calplan_1 = Calplan(id=3)
-print(calplan_1)
-
-session = db.get_session()
-
-session.begin()
-session.add(calplan_1)
-session.commit()
-
-
